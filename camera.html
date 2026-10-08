@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+
+  <!-- Penting untuk tampilan HP -->
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Kamera - SASANDO KUKM</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f3f6f9;
+      color: #1f2937;
+    }
+
+    .camera-page {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .camera-card {
+      width: 100%;
+      max-width: 620px;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+      overflow: hidden;
+    }
+
+    .camera-header {
+      padding: 20px;
+      text-align: center;
+      background: #0f766e;
+      color: white;
+    }
+
+    .camera-header h2 {
+      margin: 0 0 6px;
+      font-size: 21px;
+    }
+
+    .camera-header p {
+      margin: 0;
+      font-size: 14px;
+      opacity: 0.92;
+    }
+
+    .camera-body {
+      padding: 20px;
+    }
+
+    .camera-preview {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background: #111827;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #cameraVideo,
+    #photoPreview {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    #photoPreview {
+      display: none;
+    }
+
+    .camera-status {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 8px;
+      background: #f1f5f9;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .camera-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    .camera-btn {
+      flex: 1;
+      min-width: 130px;
+      border: 0;
+      border-radius: 9px;
+      padding: 13px 16px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .camera-btn-primary {
+      background: #0f766e;
+      color: white;
+    }
+
+    .camera-btn-primary:hover {
+      background: #115e59;
+    }
+
+    .camera-btn-secondary {
+      background: #e5e7eb;
+      color: #1f2937;
+    }
+
+    .camera-btn-secondary:hover {
+      background: #d1d5db;
+    }
+
+    .camera-btn-danger {
+      background: #dc2626;
+      color: white;
+    }
+
+    .camera-btn-danger:hover {
+      background: #b91c1c;
+    }
+
+    .camera-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .camera-note {
+      margin-top: 15px;
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 600px) {
+      .camera-page {
+        padding: 10px;
+      }
+
+      .camera-card {
+        border-radius: 12px;
+      }
+
+      .camera-body {
+        padding: 14px;
+      }
+
+      .camera-actions {
+        flex-direction: column;
+      }
+
+      .camera-btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="camera-page">
+
+  <div class="camera-card">
+
+    <div class="camera-header">
+      <h2>📷 Kamera SASANDO KUKM</h2>
+      <p>Ambil Foto Surat Keterangan Dokter</p>
+    </div>
+
+    <div class="camera-body">
+
+      <div class="camera-preview">
+
+        <video
+          id="cameraVideo"
+          autoplay
+          playsinline
+          muted
+        ></video>
+
+        <img
+          id="photoPreview"
+          alt="Preview foto"
+        >
+
+        <canvas
+          id="cameraCanvas"
+          class="hidden"
+        ></canvas>
+
+      </div>
+
+      <div
+        id="cameraStatus"
+        class="camera-status"
+      >
+        Memulai kamera...
+      </div>
+
+      <div class="camera-actions">
+
+        <button
+          type="button"
+          id="btnAmbilFoto"
+          class="camera-btn camera-btn-primary"
+          onclick="ambilFoto()"
+          disabled
+        >
+          📸 Ambil Foto
+        </button>
+
+        <button
+          type="button"
+          id="btnUlangi"
+          class="camera-btn camera-btn-secondary hidden"
+          onclick="ulangFoto()"
+        >
+          🔄 Ambil Ulang
+        </button>
+
+        <button
+          type="button"
+          id="btnGunakan"
+          class="camera-btn camera-btn-primary hidden"
+          onclick="gunakanFoto()"
+        >
+          ✓ Gunakan Foto
+        </button>
+
+        <button
+          type="button"
+          class="camera-btn camera-btn-danger"
+          onclick="tutupKamera()"
+        >
+          ✕ Batal
+        </button>
+
+      </div>
+
+      <div class="camera-note">
+        Pastikan seluruh Surat Keterangan Dokter terlihat jelas,
+        tidak terpotong, dan tulisan dapat dibaca.
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+  let cameraStream = null;
+  let capturedBlob = null;
+
+  const video = document.getElementById('cameraVideo');
+  const canvas = document.getElementById('cameraCanvas');
+  const preview = document.getElementById('photoPreview');
+  const statusEl = document.getElementById('cameraStatus');
+
+  const btnAmbilFoto =
+    document.getElementById('btnAmbilFoto');
+
+  const btnUlangi =
+    document.getElementById('btnUlangi');
+
+  const btnGunakan =
+    document.getElementById('btnGunakan');
+
+
+  function setStatus(message) {
+    statusEl.textContent = message;
+  }
+
+
+  async function mulaiKamera() {
+
+    try {
+
+      if (!navigator.mediaDevices ||
+          !navigator.mediaDevices.getUserMedia) {
+
+        throw new Error(
+          'Browser tidak mendukung akses kamera.'
+        );
+      }
+
+      setStatus(
+        'Meminta izin untuk menggunakan kamera...'
+      );
+
+      cameraStream =
+        await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: {
+              ideal: 'environment'
+            },
+            width: {
+              ideal: 1920
+            },
+            height: {
+              ideal: 1080
+            }
+          },
+          audio: false
+        });
+
+      video.srcObject = cameraStream;
+
+      await video.play();
+
+      btnAmbilFoto.disabled = false;
+
+      setStatus(
+        'Kamera aktif. Arahkan kamera ke Surat Keterangan Dokter.'
+      );
+
+    } catch (error) {
+
+      console.error(
+        'Gagal membuka kamera:',
+        error
+      );
+
+      btnAmbilFoto.disabled = true;
+
+      let pesan =
+        'Kamera tidak dapat dibuka.';
+
+      if (error.name === 'NotAllowedError') {
+
+        pesan =
+          'Akses kamera ditolak. Silakan izinkan kamera pada browser, kemudian coba lagi.';
+
+      } else if (error.name === 'NotFoundError') {
+
+        pesan =
+          'Kamera tidak ditemukan pada perangkat ini.';
+
+      } else if (error.name === 'NotReadableError') {
+
+        pesan =
+          'Kamera sedang digunakan aplikasi lain. Tutup aplikasi tersebut lalu coba lagi.';
+
+      } else if (error.name === 'SecurityError') {
+
+        pesan =
+          'Browser memblokir akses kamera karena alasan keamanan. Pastikan halaman dibuka melalui HTTPS.';
+
+      } else if (error.message) {
+
+        pesan =
+          error.message;
+      }
+
+      setStatus(pesan);
+    }
+  }
+
+
+  function ambilFoto() {
+
+    if (!cameraStream) {
+      setStatus('Kamera belum aktif.');
+      return;
+    }
+
+    if (!video.videoWidth || !video.videoHeight) {
+      setStatus('Kamera belum siap. Tunggu beberapa saat.');
+      return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const context =
+      canvas.getContext('2d');
+
+    context.drawImage(
+      video,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    canvas.toBlob(
+      function(blob) {
+
+        if (!blob) {
+
+          setStatus(
+            'Foto gagal dibuat. Silakan coba lagi.'
+          );
+
+          return;
+        }
+
+        capturedBlob = blob;
+
+        const previewUrl =
+          URL.createObjectURL(blob);
+
+        preview.src = previewUrl;
+
+        video.style.display = 'none';
+        preview.style.display = 'block';
+
+        btnAmbilFoto.classList.add('hidden');
+        btnUlangi.classList.remove('hidden');
+        btnGunakan.classList.remove('hidden');
+
+        setStatus(
+          'Foto berhasil diambil. Periksa hasil foto sebelum memilih "Gunakan Foto".'
+        );
+
+      },
+      'image/jpeg',
+      0.90
+    );
+  }
+
+
+  function ulangFoto() {
+
+    capturedBlob = null;
+
+    preview.removeAttribute('src');
+
+    preview.style.display = 'none';
+    video.style.display = 'block';
+
+    btnAmbilFoto.classList.remove('hidden');
+    btnUlangi.classList.add('hidden');
+    btnGunakan.classList.add('hidden');
+
+    setStatus(
+      'Silakan arahkan kamera ke Surat Keterangan Dokter dan ambil foto kembali.'
+    );
+  }
+
+
+  function gunakanFoto() {
+
+    if (!capturedBlob) {
+
+      setStatus(
+        'Belum ada foto yang dapat digunakan.'
+      );
+
+      return;
+    }
+
+    setStatus(
+      'Mengirim foto ke SASANDO KUKM...'
+    );
+
+    capturedBlob.arrayBuffer()
+      .then(function(buffer) {
+
+        const bytes =
+          new Uint8Array(buffer);
+
+        let binary = '';
+
+        const chunkSize = 0x8000;
+
+        for (
+          let i = 0;
+          i < bytes.length;
+          i += chunkSize
+        ) {
+
+          binary += String.fromCharCode.apply(
+            null,
+            bytes.subarray(
+              i,
+              Math.min(
+                i + chunkSize,
+                bytes.length
+              )
+            )
+          );
+        }
+
+        const base64 =
+          btoa(binary);
+
+        const result = {
+          type: 'SASANDO_CAMERA_RESULT',
+          mimeType: 'image/jpeg',
+          fileName:
+            'Surat_Keterangan_Dokter_' +
+            Date.now() +
+            '.jpg',
+          base64: base64
+        };
+
+        /*
+         * Kirim hasil foto ke halaman SASANDO KUKM
+         * yang membuka halaman kamera ini.
+         */
+        if (window.opener && !window.opener.closed) {
+
+          window.opener.postMessage(
+            result,
+            '*'
+          );
+
+          setStatus(
+            'Foto berhasil dikirim ke SASANDO KUKM. Halaman ini akan ditutup.'
+          );
+
+          hentikanKamera();
+
+          setTimeout(
+            function() {
+              window.close();
+            },
+            700
+          );
+
+        } else {
+
+          setStatus(
+            'Halaman SASANDO KUKM tidak ditemukan. Jangan tutup halaman ini jika belum selesai.'
+          );
+        }
+
+      })
+      .catch(function(error) {
+
+        console.error(error);
+
+        setStatus(
+          'Foto gagal dikirim. Silakan coba lagi.'
+        );
+      });
+  }
+
+
+  function hentikanKamera() {
+
+    if (cameraStream) {
+
+      cameraStream
+        .getTracks()
+        .forEach(function(track) {
+          track.stop();
+        });
+
+      cameraStream = null;
+    }
+  }
+
+
+  function tutupKamera() {
+
+    hentikanKamera();
+
+    if (window.opener && !window.opener.closed) {
+
+      window.opener.postMessage(
+        {
+          type: 'SASANDO_CAMERA_CANCEL'
+        },
+        '*'
+      );
+    }
+
+    window.close();
+  }
+
+
+  window.addEventListener(
+    'beforeunload',
+    function() {
+      hentikanKamera();
+    }
+  );
+
+
+  mulaiKamera();
+</script>
+
+</body>
+</html>
